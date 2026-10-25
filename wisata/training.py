@@ -20,7 +20,7 @@ from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.metrics import f1_score
+from sklearn.metrics import classification_report, f1_score
 from sklearn.model_selection import GroupShuffleSplit
 import torch
 from torch import nn
@@ -28,6 +28,10 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_sequence
 from torch.utils.data import DataLoader, Dataset
 
 from wisata.annotations import LABELS, validate_annotations
+
+
+def token_cache_key(texts: list[str]) -> str:
+    return sha256(("sastrawi-negation-v1\0" + json.dumps(texts)).encode()).hexdigest()
 
 
 @dataclass
@@ -140,7 +144,8 @@ def split_annotations(df: pd.DataFrame, seed: int):
                 .split(df, groups=groups))
 
 
-def run_experiment(df: pd.DataFrame, output: Path, config: Config) -> dict:
+def run_experiment(df: pd.DataFrame, output: Path, config: Config,
+                   preprocessed_tokens: list[list[str]] | None = None) -> dict:
     if config.scenario not in {"fasttext", "lda", "fusion"} or config.embedding not in {"fasttext", "word2vec"}:
         raise ValueError("Skenario atau embedding tidak dikenal.")
     if any(getattr(config, name) < 1 for name in ("embedding_dim", "hidden_dim", "topics_per_season",
@@ -166,7 +171,9 @@ def run_experiment(df: pd.DataFrame, output: Path, config: Config) -> dict:
             raise ValueError(f"Test berisi kelas {label} yang tidak ada di train; revisi desain split/data.")
 
     processor = TextPreprocessor()
-    tokens = [processor(text) for text in df["text"]]
+    tokens = preprocessed_tokens if preprocessed_tokens is not None else [processor(text) for text in df["text"]]
+    if len(tokens) != len(df) or any(not row for row in tokens):
+        raise ValueError("Token preprocessing tidak sesuai dengan jumlah ulasan.")
     train_tokens = [tokens[i] for i in train_ids]
     embedding = None if config.scenario == "lda" else fit_embedding(train_tokens, config)
     bank = None
@@ -194,6 +201,7 @@ def run_experiment(df: pd.DataFrame, output: Path, config: Config) -> dict:
             optimizer.step()
             epoch_loss += float(loss.detach()) * len(labels)
         losses.append(epoch_loss / len(train_ids))
+        print(f"{config.scenario}: epoch {len(losses)}/{config.epochs}, loss={losses[-1]:.4f}", flush=True)
 
     model.eval()
     predictions = []
@@ -203,10 +211,18 @@ def run_experiment(df: pd.DataFrame, output: Path, config: Config) -> dict:
     pred = np.vstack(predictions)
     truth = encoded[test_ids]
     metrics = {label: {"micro_f1": float(f1_score(truth[:, i], pred[:, i], average="micro")),
-                       "hamming_loss": float(np.mean(truth[:, i] != pred[:, i]))}
+                       "macro_f1": float(f1_score(truth[:, i], pred[:, i], average="macro", zero_division=0)),
+                       "hamming_loss": float(np.mean(truth[:, i] != pred[:, i])),
+                       "per_class": classification_report(truth[:, i], pred[:, i],
+                           labels=list(range(len(classes[label]))), target_names=classes[label],
+                           output_dict=True, zero_division=0)}
                for i, label in enumerate(LABELS)}
     metrics["overall_hamming_loss"] = float(np.mean(truth != pred))
     output.mkdir(parents=True, exist_ok=True)
+    test_result = df.iloc[test_ids][["review_id", *LABELS]].copy()
+    for i, label in enumerate(LABELS):
+        test_result["predicted_" + label] = [classes[label][value] for value in pred[:, i]]
+    test_result.to_csv(output / "test_predictions.csv", index=False)
     if embedding is not None:
         embedding.save(str(output / "embedding.gensim"))
     if bank is not None:
@@ -217,6 +233,8 @@ def run_experiment(df: pd.DataFrame, output: Path, config: Config) -> dict:
                 "test_review_ids": df.iloc[test_ids]["review_id"].tolist(),
                 "train_rows": len(train_ids), "test_rows": len(test_ids),
                 "annotation_sha256": sha256(df.to_csv(index=False).encode()).hexdigest(),
+                "label_status_counts": df["annotation_status"].value_counts().to_dict(),
+                "label_counts": {label: df[label].value_counts().to_dict() for label in LABELS},
                 "metrics": metrics, "training_losses": losses,
                 "split": "grouped-by-normalized-review-text-80-20",
                 "topic_inference": "concatenate-all-season-banks-no-target-label-routing"}
@@ -225,7 +243,7 @@ def run_experiment(df: pd.DataFrame, output: Path, config: Config) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Latih model hanya dari anotasi approved.")
+    parser = argparse.ArgumentParser(description="Latih model dari label approved atau derived dengan provenance.")
     parser.add_argument("annotations", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--scenario", choices=["fasttext", "lda", "fusion"], default="fusion")

@@ -23,7 +23,7 @@ ini belum dibuktikan dan tidak diasumsikan.
 
 ```mermaid
 flowchart TD
-    A[Ulasan dan metadata] --> B[Seleksi wilayah Madura dan verifikasi tanggal]
+    A[Ulasan dan metadata] --> B[Seleksi wilayah Madura dari manifest]
     B --> C[Pelabelan musim, jenis wisata, sentimen]
     C --> D[Split train 80 persen dan test 20 persen]
     D --> E[Normalisasi, tokenisasi, stopword, stemming]
@@ -46,9 +46,10 @@ flowchart TD
 - Jalur audit/retrieval menggunakan teks asli dengan pembersihan ringan. Jalur
   classifier terpisah: lowercase, tokenisasi huruf Unicode, stopword Sastrawi,
   stemming. Negasi tidak/bukan/belum/jangan/kurang dipertahankan untuk sentimen.
-- Target saat ini satu kategori per aspek sesuai tabel proposal. Cuaca dan liburan
-  dapat beririsan; kebijakan adjudikasi harus ditetapkan. Jika memilih multilabel,
-  ubah head/loss/metrik sebelum eksperimen.
+- Sesuai keputusan pengguna, target musim memakai kelas asli rekomendasi_cuaca:
+  Kemarau dan Kemarau & Penghujan; target sentimen memakai rating 1–2 negatif,
+  3 netral, 4–5 positif. Jenis wisata mengikuti kategori asli dataset. Tidak
+  membuat label liburan atau mengonversi date menjadi tanggal kunjungan.
 - Split 80/20 dikelompokkan menurut teks ternormalisasi agar duplikat identik
   tidak tersebar di train/test. Seed dan review_id split disimpan. Ini belum
   menjamin generalisasi ke destinasi baru atau masa depan.
@@ -67,31 +68,50 @@ flowchart TD
 - Pada target single-label, Micro F1 per aspek setara accuracy. Hamming Loss
   per aspek adalah proporsi keputusan salah; overall merata-ratakan semua
   keputusan pada tiga aspek. Ini dibedakan dari hamming pada matriks multi-hot.
-- Minimal 20 baris approved pada CLI adalah batas teknis, bukan ukuran sampel
+- Minimal 20 baris berlabel valid pada CLI adalah batas teknis, bukan ukuran sampel
   yang dinyatakan cukup secara ilmiah.
 
-## Eksperimen setelah label nyata tersedia
+## Eksperimen data nyata
 
 ```bash
 python -m pip install -r requirements-model.txt
-python -m wisata.annotations data/koreksi_dataset.xlsx artifacts/anotasi.csv --limit 200
-# Tetapkan konvensi label, verifikasi wilayah, lalu isi dan adjudikasi terlebih dahulu.
-python -m wisata.train artifacts/anotasi.csv --scenario fasttext --output artifacts/fasttext
-python -m wisata.train artifacts/anotasi.csv --scenario lda --output artifacts/lda
-python -m wisata.train artifacts/anotasi.csv --scenario fusion --output artifacts/fusion
-python -m wisata.train artifacts/anotasi.csv --scenario fusion --embedding word2vec --output artifacts/word2vec-lda
+python -m wisata.labeling data/koreksi_dataset.xlsx --output artifacts/madura_labels.csv
+python -m wisata.experiments artifacts/madura_labels.csv --output artifacts/experiments-dataset-v1 --epochs 10
 ```
 
-Default region adalah madura. --region all hanya untuk eksperimen tambahan yang
-diberi cakupan berbeda. Folder output harus baru/kosong. Artefak: embedding,
-bank topik, classifier, konfigurasi, hash label, metrik, ID split.
-Muat hanya artefak tepercaya buatan pipeline sendiri; gensim/joblib bukan format
-aman untuk unggahan model bebas.
+Manifest cakupan mengikuti empat kabupaten Madura dalam proposal kolaborasi.
+5.071 ulasan bersih dari 20 destinasi included; dua kandidat lokasi masih pending.
+Workbook sumber tidak diubah dan tidak difilter permanen. Semua label derived
+memiliki provenance. Definisi target ini merupakan adaptasi operasional proposal
+berdasarkan keputusan pengguna, bukan empat kelas musim/liburan aslinya.
 
-## Batas implementasi
+## Retrieval dan integrasi classifier
 
-Pipeline classifier tersedia untuk pengujian teknis dengan data sintetis.
-Konvensi label data nyata sedang diklarifikasi. Retrieval BGE, integrasi prediksi
-ke ranking, riwayat pengguna, ground truth rekomendasi independen, serta deployment
-rekomendasi akhir belum diimplementasikan. Notebook tidak memuat hasil eksekusi,
-indeks, atau model terlatih yang dapat langsung dijadikan artefak serving.
+wisata.retrieval mengimplementasikan BGE-M3 dense beku, embedding L2 dan cosine.
+Skor destinasi adalah rata-rata min(5, jumlah kandidat) skor ulasan tertinggi.
+Filter musim memakai label metadata dan hanya kandidat valid yang diranking.
+Jika artefak classifier disertakan saat membangun indeks, prediksi sentimen
+BiLSTM menjadi dasar filter sentimen. Prediksi ketiga aspek disimpan pada indeks;
+label musim sumber tetap dipakai untuk menjamin konsistensi filter pengguna.
+Tanpa classifier, sumber filter sentimen dinyatakan rating-derived.
+
+Manifest mengikat korpus lengkap, urutan ulasan, model/revisi, panjang token,
+checksum embedding dan metadata. Query menggunakan encoder yang sama.
+Ulasan bukti dipilih dari ulasan kandidat dengan cosine tertinggi; skor bukan
+probabilitas. Rating hasil adalah rata-rata ulasan kandidat setelah filter.
+
+## Batas interpretasi
+
+Evaluasi classifier mengukur pemulihan label turunan rating/cuaca/kategori,
+bukan agreement terhadap sentimen manusia atau musim kunjungan terverifikasi.
+Label cuaca dan jenis wisata konstan per destinasi; split ulasan tidak menguji
+transfer ke destinasi baru. Sebaran sentimen didominasi positif sehingga Macro F1
+serta dukungan setiap kelas perlu dibaca bersama Micro F1. Seed disimpan, tetapi
+identitas hasil bitwise lintas platform/Python hash seed tidak dijamin.
+
+Indeks BGE asli telah dibangun dari seluruh cakupan dan diuji melalui query
+baru serta filter; BF16 dipakai pada CPU yang mendukung dan presisi dicatat dalam
+manifest agar query/index konsisten. Unit test fixture hanya memeriksa mekanika;
+evaluasi model asli dipisahkan dalam HASIL_EKSPERIMEN.md. Known-item 20 query
+memakai leave-query-out; bukan human qrels. Riwayat pengguna, deployment publik,
+dan evaluasi kebutuhan pengguna dengan penilaian manusia belum dilakukan.

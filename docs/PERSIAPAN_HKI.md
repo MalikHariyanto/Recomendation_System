@@ -26,6 +26,6 @@ checklist kerja; tidak menyatakan pengajuan sudah lengkap, diserahkan, atau dise
 4. Deploy, uji melalui aplikasi publik, dan ambil screenshot aktual dengan keterangan.
 5. Susun manual pengguna dan PDF bukti; lengkapi identitas/dokumen melalui portal.
 
-Saat ini workbench audit dan pipeline classifier awal tersedia. Screenshot rekomendasi, hasil
-model, tautan deployment, daftar pencipta final, dan dokumen administrasi belum
+Saat ini workbench dan hasil tiga eksperimen classifier data nyata tersedia.
+Screenshot rekomendasi BGE, tautan deployment, daftar pencipta final, dan dokumen administrasi belum
 dibuat atau diklaim selesai. Proposal dan dokumen identitas tidak dimasukkan Git.

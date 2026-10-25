@@ -16,7 +16,7 @@ pytest.importorskip("Sastrawi")
 
 from wisata.annotations import LABELS
 from wisata.inference import Classifier
-from wisata.training import Config, TextPreprocessor, fit_embedding, run_experiment, split_annotations
+from wisata.training import Config, TextPreprocessor, fit_embedding, run_experiment, split_annotations, token_cache_key
 
 
 @pytest.fixture
@@ -24,8 +24,8 @@ def labeled_reviews():
     return pd.DataFrame([
         {"review_id": f"synthetic-{i}",
          "text": f"Wisata pantai bersih nyaman keluarga cerah contoh ulasan nomor {i}",
-         "season_label": ["kemarau", "hujan", "liburan_sekolah", "libur_nasional"][i % 4],
-         "tourism_label": ["alam", "sejarah", "budaya", "religi", "lainnya"][i % 5],
+         "season_label": ["Kemarau", "Kemarau & Penghujan"][i % 2],
+         "tourism_label": ["pantai", "sejarah", "taman", "religi", "lainnya"][i % 5],
          "sentiment_label": ["positif", "negatif", "netral"][i % 3],
          "region": "madura", "annotation_status": "approved"}
         for i in range(80)
@@ -48,6 +48,13 @@ def test_synthetic_train_export_reload_predict(labeled_reviews, tmp_path, scenar
     assert 0 <= result["metrics"]["overall_hamming_loss"] <= 1
     classifier = Classifier(directory)
     assert set(classifier.predict("pantai indah untuk keluarga")) == set(LABELS)
+    assert classifier.predict_many(["pantai indah untuk keluarga"])[0] == classifier.predict("pantai indah untuk keluarga")
+    text = "pantai indah untuk keluarga"
+    expected = classifier.predict(text)
+    cache = directory.parent / ("tokens-" + token_cache_key([text]) + ".json")
+    cache.write_text(json.dumps([classifier.processor(text)]))
+    classifier.processor = lambda text: (_ for _ in ()).throw(AssertionError("Should reuse matching token cache"))
+    assert classifier.predict_many([text]) == [expected]
     with pytest.raises(ValueError, match="kosong"):
         classifier.predict("  ")
     assert json.loads((directory / "manifest.json").read_text())["config"]["scenario"] == scenario

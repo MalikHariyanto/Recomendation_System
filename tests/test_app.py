@@ -11,7 +11,7 @@ def test_app_empty_state(monkeypatch):
     monkeypatch.delenv("WISATA_DATA_PATH", raising=False)
     app = AppTest.from_file(str(APP)).run()
     assert not app.exception
-    assert "belum menghasilkan rekomendasi" in app.info[0].value
+    assert "menunggu indeks BGE" in app.info[0].value
     assert not app.metric
 
 
@@ -24,11 +24,12 @@ def test_app_loads_dataset_and_filters_season(raw_reviews, monkeypatch, tmp_path
     app = AppTest.from_file(str(APP)).run(timeout=20)
     assert not app.exception
     assert [item.value for item in app.metric] == ["5", "2", "2", "2"]
+    app.radio[0].set_value("Seluruh dataset (audit)").run()
     assert len(app.dataframe[0].value) == 2
-    app.selectbox[1].select("Hujan").run()
+    app.selectbox(key="catalog_season").select("Hujan").run()
     assert not app.exception
     assert app.dataframe[0].value["destinasi"].tolist() == ["Museum Contoh"]
-    app.selectbox[0].select("pantai").run()
+    app.selectbox(key="catalog_category").select("pantai").run()
     assert app.dataframe[0].value.empty
 
 

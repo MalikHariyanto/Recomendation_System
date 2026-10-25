@@ -43,7 +43,8 @@ Pemetaan ID–nama satu banding satu; kategori dan label musim konsisten per des
 Notebook menyebut 13 kategori untuk konstruksi query, sedangkan workbook memiliki
 14; katalog dan cakupan query harus diperiksa terpisah. Tidak ada kolom label sentimen,
 koordinat, harga tiket, fasilitas terstruktur, atau cuaca langsung pada workbook ini.
-Rating dapat menjadi proksi sentimen dengan pemetaan yang disepakati, tetapi bukan
+Keputusan pengguna telah menetapkan rating 1–2 negatif, 3 netral, 4–5 positif,
+dan rekomendasi_cuaca sebagai target musim. Rating bukan
 ground truth relevansi kebutuhan pengguna. Date adalah waktu ulasan relatif, bukan
 tanggal kunjungan terverifikasi. Lihat ANOTASI.md untuk pemetaan yang perlu ditetapkan.
 
@@ -85,6 +86,8 @@ tanggal kunjungan terverifikasi. Lihat ANOTASI.md untuk pemetaan yang perlu dite
    ulasan mentah. Sebut bukti sebagai ulasan pendukung; jangan mengklaim ulasan itu
    merupakan dekomposisi persis dari skor akhir.
 
-Temuan ini adalah hasil inspeksi kode; eksperimen model besar dan angka kualitas
-retrieval belum dijalankan. Workbench dan pipeline classifier dipisahkan; audit
+Temuan notebook di atas adalah hasil inspeksi kode; evaluasi retrieval BGE
+awal kini tersedia secara terpisah di HASIL_EKSPERIMEN.md. Tiga eksperimen classifier pada
+5.071 ulasan Madura telah dijalankan dan dilaporkan di HASIL_EKSPERIMEN.md.
+Workbench dan pipeline classifier dipisahkan; audit
 notebook retrieval ini tidak mengganti metode FastText/LDA/BiLSTM pada proposal Malik.

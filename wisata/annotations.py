@@ -10,9 +10,11 @@ from wisata.data import prepare_data, read_excel
 
 
 LABELS = ("season_label", "tourism_label", "sentiment_label")
-SEASON_LABELS = {"kemarau", "hujan", "liburan_sekolah", "libur_nasional"}
+SEASON_LABELS = {"Kemarau", "Penghujan", "Kemarau & Penghujan"}
 SENTIMENT_LABELS = {"positif", "negatif", "netral"}
-TOURISM_LABELS = {"sejarah", "alam", "budaya", "religi", "lainnya"}
+TOURISM_LABELS = {"sejarah", "religi", "lainnya", "pantai", "air terjun", "rekreasi/edukasi",
+                  "pegunungan", "taman", "hutan/perkebunan", "goa", "desa/kampung wisata",
+                  "danau/waduk", "sungai", "pemandian"}
 
 
 def annotation_template(reviews: pd.DataFrame, limit: int | None = None) -> pd.DataFrame:
@@ -46,8 +48,14 @@ def validate_annotations(df: pd.DataFrame) -> pd.DataFrame:
                             ("sentiment_label", SENTIMENT_LABELS)):
         if not result[column].isin(allowed).all():
             raise ValueError(f"Kategori {column} harus mengikuti pedoman anotasi.")
-    if not result["annotation_status"].eq("approved").all():
-        raise ValueError("Semua anotasi training harus berstatus approved.")
+    if not result["annotation_status"].isin(["approved", "derived"]).all():
+        raise ValueError("Label training harus berstatus approved atau derived dengan provenance.")
+    derived = result["annotation_status"].eq("derived")
+    if derived.any():
+        for column, source in (("sentiment_source", "rating"), ("season_source", "rekomendasi_cuaca"),
+                               ("tourism_source", "wisata")):
+            if column not in result or not result.loc[derived, column].eq(source).all():
+                raise ValueError("Provenance label derived tidak lengkap atau tidak sesuai kebijakan.")
     return result
 
 

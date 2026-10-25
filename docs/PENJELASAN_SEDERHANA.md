@@ -47,3 +47,10 @@ setelah dikonversi, itu tetap waktu ulasan, belum tentu waktu kunjungan.
 
 Tidak perlu memaksa semua kolom ada dengan cara mengarang label. Dataset tetap
 berguna; yang perlu dirapikan adalah hubungan antara pertanyaan riset dan arti data.
+
+## Keputusan yang sekarang dijalankan
+
+Pengguna sudah menetapkan: sentimen dari rating, musim dari rekomendasi_cuaca,
+dan wilayah mengikuti proposal kolaborasi (Madura). Kode kini membuat label
+tersebut secara otomatis dengan catatan asal label. Tidak lagi menunggu konfirmasi
+teknis pelabelan. Perbedaan arti data dijelaskan agar laporan tetap akurat.

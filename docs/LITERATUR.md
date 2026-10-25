@@ -1,8 +1,30 @@
 # Rujukan dan status pemeriksaan
 
-Tidak semua daftar pustaka dalam notebook telah diverifikasi. Teks lengkap paper
-belum dapat diakses dari environment ini karena respons proxy `403 Forbidden`.
+Tidak semua daftar pustaka dalam notebook telah diverifikasi. Paper FastText dan
+BGE-M3 berhasil diunduh dari arXiv serta LDA dari JMLR. Bagian metode yang relevan
+telah diperiksa; status sumber lainnya dibedakan di bawah.
 Jangan mengartikan catatan ini sebagai systematic literature review yang selesai.
+
+## Paper yang bagian metodenya diperiksa
+
+- Blei, Ng, dan Jordan (2003), Latent Dirichlet Allocation,
+  https://www.jmlr.org/papers/volume3/blei03a/blei03a.pdf, §2–3. Dokumen
+  direpresentasikan sebagai campuran distribusi topik dengan asumsi bag-of-words;
+  fitur classifier adalah distribusi topik, bukan label sentimen. Implementasi
+  memakai CountVectorizer dan LDA scikit-learn. Bank cuaca dan concatenation
+  seluruh bank adalah rancangan proyek, bukan metode musim/BiLSTM pada paper asli.
+- Bojanowski et al. (2017), Enriching Word Vectors with Subword Information,
+  https://arxiv.org/abs/1607.04606, §3.1–3.2 dan §4.3. Skip-gram dikembangkan
+  dengan representasi kata melalui n-gram karakter 3–6, termasuk boundary
+  karakter dan kata utuh; mendukung kata yang tidak ada pada vocabulary.
+  Implementasi proyek menggunakan Gensim, dimensi 64, bucket 50.000, bukan
+  replikasi hyperparameter paper (dimensi 300 dan bucket dua juta).
+- Chen et al. (2024), BGE M3-Embedding, https://arxiv.org/abs/2402.03216, §3.1
+  dan arsitektur retrieval: dense memakai hidden state CLS ternormalisasi;
+  sparse dan multi-vector adalah mode lain. Proyek memilih dense saja.
+  Paper mendukung panjang hingga 8192, proyek membatasi 256 untuk biaya CPU.
+
+Tidak memindahkan nilai benchmark paper menjadi hasil pada dataset proyek.
 
 ## Sumber resmi yang berhasil diperiksa
 
@@ -33,7 +55,8 @@ benchmark mereka tidak dipindahkan menjadi hasil pada dataset Jawa Timur.
 Rujukan utama proposal Malik tambahan: Blei et al. (2003), Latent Dirichlet
 Allocation, https://www.jmlr.org/papers/v3/blei03a.html, dan Schuster & Paliwal
 (1997), Bidirectional Recurrent Neural Networks, https://doi.org/10.1109/78.650093.
-Teks lengkap belum diperiksa di sesi ini; tidak diklaim telah direplikasi persis.
+Paper LDA telah diperiksa seperti catatan di atas; paper BiRNN belum diperiksa
+langsung di sesi ini. Tidak diklaim telah direplikasi persis.
 Studi FastText lokal dalam proposal (RESTI DOI 10.29207/resti.v6i4.4187 dan
 10.29207/resti.v6i5.4429) serta PeerJ DOI 10.7717/peerj-cs.422 juga perlu dibaca
 langsung sebelum memindahkan klaim atau angka mereka ke laporan.
@@ -59,5 +82,7 @@ Draft environment menambahkan `arxiv.org`, `huggingface.co`, `www.microsoft.com`
 dan `krisztianbalog.com` ke daftar domain khusus, tanpa mengganti preset package
 manager. Perubahan draft belum berarti akses runtime aktif. Perlu review/save
 dan publish melalui pengaturan environment, lalu ulangi pengambilan sumber.
-Domain unduhan bobot/CDN lain mungkin diperlukan setelah metode dan deployment
-ditetapkan; belum diminta tanpa bukti kebutuhan.
+Domain tambahan us.aws.cdn.hf.co (redirect bobot BGE), id.wikipedia.org
+(pemeriksaan identitas destinasi), dan www.jmlr.org (paper LDA) sudah disimpan
+di draft. Akses bobot BGE serta paper LDA akhirnya berhasil melalui library/HTTPS resmi.
+Penyimpanan draft tetap dibedakan dari penerapan atau publication environment.

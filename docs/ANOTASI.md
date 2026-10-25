@@ -1,42 +1,52 @@
-# Konvensi label dan format anotasi
+# Kebijakan label yang digunakan
 
-Workbook menyediakan rating, date, rekomendasi_cuaca, dan wisata. Kolom itu
-merupakan bahan pelabelan, namun arti setiap target perlu dibuat eksplisit.
+Keputusan pengguna: jalankan sesuai dataset, sentimen memakai rating,
+musim memakai rekomendasi_cuaca, dan wilayah mengikuti proposal kolaborasi.
 
-| Data sumber | Pemakaian yang mungkin | Batas interpretasi |
+| Target | Sumber | Aturan |
 | --- | --- | --- |
-| rating | Proksi sentimen: 1–2 negatif, 3 netral, 4–5 positif | Harus disepakati dan dilaporkan sebagai rating-derived, bukan anotasi teks manusia |
-| date | Waktu publikasi/edit ulasan | Nilai seperti 1 hari lalu memerlukan tanggal scraping; belum tentu tanggal kunjungan |
-| rekomendasi_cuaca | Kecocokan cuaca destinasi | Dua nilai Kemarau dan Kemarau & Penghujan; bukan empat kelas musim/liburan dalam proposal |
-| wisata | Karakteristik destinasi | Empat belas kategori sumber perlu pemetaan eksplisit ke kategori target proposal |
+| sentiment_label | rating | 1–2 negatif, 3 netral, 4–5 positif |
+| season_label | rekomendasi_cuaca | Pertahankan Kemarau dan Kemarau & Penghujan sebagai dua kelas kategorikal |
+| tourism_label | wisata | Pertahankan kategori asli, tanpa menggabungkan ke lima kelompok buatan |
+| region | manifest wilayah | madura untuk identitas destinasi yang masuk cakupan |
 
-File unggahan ulang memiliki SHA-256 identik dengan unggahan pertama:
-84245d7276d9ea14014be983f0a0a0385685c20ae08ff43817fecd5b2329e527.
-Satu sheet: Data Ulasan. Tidak ada sheet anotasi tersembunyi tambahan yang ditemukan.
-Persetujuan konvensi label dan tanggal scraping masih ditanyakan; pipeline belum
-mengonversi target secara diam-diam.
+Kelas gabungan Kemarau & Penghujan tidak dipecah menjadi dua observasi atau
+diubah menjadi label hujan saja. Tidak membuat kelas liburan sekolah/nasional
+dan tidak menghitung musim dari date. Dalam penulisan, sebut **label musim
+berbasis rekomendasi_cuaca**, bukan tanggal kunjungan yang sudah diverifikasi.
 
-## Template
+## Provenance dan status
 
-Jalankan python -m wisata.annotations. Template mempertahankan source_rating,
-source_date, dan source_weather_suitability untuk pemeriksaan, dengan target kosong.
+Label yang dihasilkan otomatis memakai annotation_status=derived,
+sentiment_source=rating, season_source=rekomendasi_cuaca, tourism_source=wisata,
+dan label_policy=dataset-labels-v1. Status derived berbeda dari approved yang
+dipakai untuk anotasi manusia. Validator memeriksa provenance dan kategori label.
 
-| Kolom | Isi |
-| --- | --- |
-| review_id | SHA-256 ID destinasi dan teks bersih, unik |
-| text / destinasi | Ulasan dan konteks destinasi |
-| source_date / source_rating / source_weather_suitability | Bahan pelabelan asli |
-| season_label | kemarau / hujan / liburan_sekolah / libur_nasional |
-| tourism_label | sejarah / alam / budaya / religi / lainnya |
-| sentiment_label | positif / negatif / netral |
-| region | madura untuk data utama, wilayah lain ditulis eksplisit |
-| annotation_status | approved setelah label diverifikasi |
-| annotator_code / notes | Kode penilai dan alasan/adjudikasi |
+Kolom sumber source_rating, source_date, source_weather_suitability tetap
+dipertahankan. Label bukan kebenaran sentimen teks yang diperiksa manusia:
+rating tinggi dapat berdampingan dengan keluhan dalam teks.
 
-Cuaca dan liburan dapat beririsan. Target single-label mengikuti tabel proposal,
-tetapi kebijakan untuk kasus beririsan perlu disepakati. Jangan memilih label
-sembarang untuk memenuhi format. Jika keputusan akhirnya multilabel atau memakai
-label kecocokan cuaca, perubahan ruang lingkup harus dicatat dan model disesuaikan.
+## Wilayah Madura
 
-Lokasi Madura perlu diverifikasi; workbook Jawa Timur tidak punya kolom wilayah.
-Semua 207 destinasi tidak otomatis termasuk ruang lingkup Madura.
+Proposal KolabInter menyebut Bangkalan, Sampang, Pamekasan, dan Sumenep.
+config/madura_destinations.csv berisi pemetaan ID sekaligus nama sumber, kabupaten,
+status, dan dasar penetapannya. Pemetaan memakai identitas destinasi dan konteks
+ulasan; dua destinasi disebut langsung dalam proposal. Ini kurasi manual, bukan
+hasil geocoding atau verifikasi lokasi resmi eksternal.
+
+Saat ini 20 destinasi included, 2 kandidat pending_location:
+Bukit Salju dan Pantai Siri Kemuning. Kandidat pending tidak masuk training
+atau indeks. Destinasi lain pada workbook tidak otomatis dinyatakan di luar
+Madura; mereka hanya tidak termasuk daftar yang ditetapkan. Nama/ID yang
+berbeda dari manifest menyebabkan error, bukan penggabungan diam-diam.
+
+## Eksekusi
+
+```bash
+python -m wisata.labeling data/koreksi_dataset.xlsx --output artifacts/madura_labels.csv
+python -m wisata.experiments artifacts/madura_labels.csv --output artifacts/experiments-dataset-v1 --epochs 10
+```
+
+File CSV dan laporan JSON label berada di artifacts, diabaikan Git.
+Template anotasi manual tetap tersedia melalui wisata.annotations untuk validasi
+lanjutan; tidak menjadi prasyarat ulang untuk label turunan yang telah disetujui.
