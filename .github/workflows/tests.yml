@@ -9,5 +9,5 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-      - run: python -m pip install -r requirements-model.txt
+      - run: python -m pip install -r requirements-model.txt -r requirements-fusion-dev.txt
       - run: python -m pytest -q
