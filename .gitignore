@@ -1,0 +1,15 @@
+__pycache__/
+.pytest_cache/
+.venv/
+.env
+.streamlit/secrets.toml
+data/*
+!data/README.md
+artifacts/
+output*/
+cache*/
+*.xlsx
+*.pdf
+*.npy
+*.pt
+*.pkl
